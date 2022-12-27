@@ -1,5 +1,7 @@
 using System.Text;
 using Infrastructure.Context;
+using Infrastructure.Seeds;
+using Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +13,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddControllers();
-
+builder.Services.AddScoped<AccountService>();
 builder.Services.AddDbContext<DataContext>(config=>config.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
@@ -86,6 +88,28 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+//default seed
+try
+{
+    using (var scope = app.Services.CreateScope())
+    {
+        var services = scope.ServiceProvider;
+        var context = services.GetRequiredService<DataContext>();
+        var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
+        var userManager = services.GetRequiredService<UserManager<IdentityUser>>();
+        await context.Database.MigrateAsync();
+        
+        await DefaultRoleSeed.SeedAsync(roleManager);
+        await DefaultUser.SeedAsync(userManager);
+        app.Logger.LogInformation("Finished Seeding Default Data");
+        app.Logger.LogInformation("Application Starting");
+    }
+}
+catch (Exception ex)
+{
+    app.Logger.LogError($"An Error occurred while seeding the db:  {ex.Message}");
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

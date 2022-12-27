@@ -14,6 +14,7 @@ public class Response<T>
     }
        public Response(T data)
        {
+           StatusCode = 200;
             Data = data;
        }
    
